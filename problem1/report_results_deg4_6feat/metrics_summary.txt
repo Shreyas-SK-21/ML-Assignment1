@@ -1,0 +1,21 @@
+=== PROBLEM 1 REPORT RESULTS ===
+Features Used: x1, x2, x3, x4, x5, x6
+Polynomial Degree: 4
+Total Terms: 210
+--------------------------------
+Train MSE: 0.379329
+Train R2:  0.965875
+Val MSE:   0.835185
+Val R2:    0.928205
+--------------------------------
+Top 10 Terms by Magnitude:
+  x6^2                 w = +2.7516
+  x2^3·x3              w = -2.7054
+  x3·x6^2              w = -2.2455
+  x1·x5                w = -2.0353
+  x3^2·x4^2            w = -1.9242
+  x3·x6                w = -1.8960
+  x2·x4·x6             w = -1.8917
+  x2·x6                w = +1.6302
+  x3^2·x5^2            w = -1.4528
+  x1^2·x6              w = -1.2002
