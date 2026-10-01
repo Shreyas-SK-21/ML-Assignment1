@@ -1,0 +1,142 @@
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{caption}
+
+\title{\textbf{Machine Learning Assignment 1: Polynomial Regression Analysis}}
+\author{Roll Number: IMT2024045}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This report details the implementation and evaluation of a polynomial regression model developed entirely from scratch using NumPy. The objective is to predict the continuous target variable $y$ for two distinct scenarios: Steam Turbine Optimization (var1) and Subterranean Thermal Reservoir Mapping (var2). The report discusses the mathematical foundations aligned with the course notation, feature selection methodologies, and the determination of the optimal polynomial degree through hyperparameter sweeping.
+
+\section{Methodology and Mathematical Formulation}
+Following the notation established in the lectures, let the $n^{\text{th}}$ data point be denoted by the input vector $\mathbf{x}_n$ and the true target value as $y_n$ (often denoted $t_n$ in standard literature). The predictor or hypothesis function is parameterized by weights $\mathbf{w}$ and is defined as:
+\begin{equation}
+f(\mathbf{x}_n; \mathbf{w}) = \mathbf{w}^T \mathbf{x}_n
+\end{equation}
+
+For polynomial regression of degree $d$ with $D$ original features, we expand the input vector $\mathbf{x}_n$ to include all combinations of polynomial terms (monomials) up to degree $d$. 
+
+The model is optimized by minimizing the averaged Squared Loss function $\mathcal{L}$ over all $N$ data points:
+\begin{equation}
+\mathcal{L}(\mathbf{w}) = \frac{1}{N} \sum_{n=1}^{N} \mathcal{L}_n(y_n, f(\mathbf{x}_n; \mathbf{w})) = \frac{1}{N} \sum_{n=1}^{N} (y_n - \mathbf{w}^T \mathbf{x}_n)^2
+\end{equation}
+
+Let $\mathbf{X}$ be the data matrix where the $n^{\text{th}}$ row is $\mathbf{x}_n^T$, and let $\mathbf{y}$ be the column vector of targets. Setting the gradient of $\mathcal{L}(\mathbf{w})$ with respect to $\mathbf{w}$ to zero yields the Normal Equation:
+\begin{equation}
+\mathbf{X}^T \mathbf{X} \mathbf{w} = \mathbf{X}^T \mathbf{y}
+\end{equation}
+
+Solving for $\mathbf{w}$, we obtain the closed-form optimal weights:
+\begin{equation}
+\mathbf{w} = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{y}
+\end{equation}
+
+To ensure numerical stability when $\mathbf{X}^T \mathbf{X}$ is ill-conditioned (which is common in high-degree polynomial expansions), the implementation calculates the least-squares solution using Singular Value Decomposition via NumPy.
+
+\section{Problem 1: Steam Turbine Optimization (var1)}
+\subsection{Experimental Setup}
+The objective is to predict the Net Power Score ($y$) based on 6 operational parameters ($x_1, \dots, x_6$). The historical plant calibration logs were split into 80\% training ($N=800$) and 20\% validation ($N=200$). We compared models trained on a subset of features versus the full feature set.
+
+\subsection{Degree Sweep and Model Selection}
+We swept the polynomial degree from 1 to 10. The evaluation metrics used were Mean Squared Error (MSE) and the $R^2$ Score. 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{var1_sweep.png}
+    \caption{Degree Sweep for Problem 1 comparing different feature subsets.}
+    \label{fig:var1_sweep}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{c c c | c c}
+\toprule
+\textbf{Degree} & \textbf{3 Features ($x_1, x_2, x_3$)} & & \textbf{6 Features ($x_1 \dots x_6$)} & \\
+& Val MSE & Val $R^2$ & Val MSE & Val $R^2$ \\
+\midrule
+1 & 11.69 & -0.005 & 10.90 & 0.063 \\
+2 & 10.23 & 0.120 & 3.46 & 0.703 \\
+3 & 10.09 & 0.133 & 1.12 & 0.904 \\
+\textbf{4} & 9.95 & 0.145 & \textbf{0.835} & \textbf{0.928} \\
+5 & 9.83 & 0.155 & 1.21 & 0.896 \\
+6 & 10.41 & 0.105 & $6.49 \times 10^7$ & Explodes \\
+\bottomrule
+\end{tabular}
+\caption{Validation performance across polynomial degrees for Problem 1.}
+\label{tab:var1_sweep}
+\end{table}
+
+As illustrated in Figure \ref{fig:var1_sweep} and Table \ref{tab:var1_sweep}, using only 3 features results in severe underfitting across all degrees, with a maximum $R^2$ of merely 0.155. 
+
+Incorporating all 6 features yields a dramatic improvement. The validation MSE reaches its absolute minimum at \textbf{Degree 4} (MSE = 0.835, $R^2$ = 0.928). At Degree 5, the model begins to overfit, and at Degree 6, the model suffers from extreme overfitting due to the curse of dimensionality, causing the validation error to explode into the millions. 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{var1_residuals.png}
+    \caption{Residual Analysis for the optimal Degree 4 model (6 features).}
+    \label{fig:var1_res}
+\end{figure}
+
+Figure \ref{fig:var1_res} demonstrates the excellent fit of the Degree 4 model, with predictions forming a tight cluster around the perfect fit line for both training and validation sets. Therefore, the \textbf{Degree 4 model with all 6 features} was selected.
+
+\section{Problem 2: Subterranean Thermal Reservoir Mapping (var2)}
+\subsection{Experimental Setup}
+The objective is to predict the Thermal Anomaly Score ($y$) using 3 spatial coordinate offsets ($x_1, x_2, x_3$). An 80/20 train-validation split was employed. We evaluated models using a single feature versus all 3 features.
+
+\subsection{Degree Sweep and Model Selection}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{var2_sweep.png}
+    \caption{Degree Sweep for Problem 2 comparing different feature subsets.}
+    \label{fig:var2_sweep}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{c c c | c c}
+\toprule
+\textbf{Degree} & \textbf{1 Feature ($x_1$)} & & \textbf{3 Features ($x_1, x_2, x_3$)} & \\
+& Val MSE & Val $R^2$ & Val MSE & Val $R^2$ \\
+\midrule
+1 & 50.13 & -0.003 & 38.66 & 0.226 \\
+4 & 46.86 & 0.062 & 3.48 & 0.930 \\
+6 & 46.29 & 0.074 & 0.633 & 0.987 \\
+\textbf{8} & 46.38 & 0.072 & \textbf{0.324} & \textbf{0.993} \\
+10 & 46.23 & 0.075 & 0.416 & 0.992 \\
+\bottomrule
+\end{tabular}
+\caption{Validation performance across polynomial degrees for Problem 2.}
+\label{tab:var2_sweep}
+\end{table}
+
+The analysis reveals that using a single feature ($x_1$) completely fails to capture the variance in the data, maxing out at an $R^2$ of ~7.5\% regardless of the degree (Table \ref{tab:var2_sweep}).
+
+When utilizing all 3 features, the model's performance improves significantly. The validation MSE steadily decreases as the degree increases, hitting a minimum at \textbf{Degree 8} (Val MSE = 0.324, $R^2$ = 0.993), as seen in Figure \ref{fig:var2_sweep}. Despite having 165 polynomial terms, the Degree 8 model remains highly stable.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{var2_residuals.png}
+    \caption{Residual Analysis for the optimal Degree 8 model (3 features).}
+    \label{fig:var2_res}
+\end{figure}
+
+The residual plot in Figure \ref{fig:var2_res} confirms that the validation predictions are exceptionally accurate. Consequently, the \textbf{Degree 8 model with all 3 features} was chosen as the final model for Problem 2.
+
+\section{Conclusion}
+Through systematic feature selection and hyperparameter sweeping, optimal polynomial regression models were identified. The analysis demonstrated that leveraging the full feature set up to an optimal complexity boundary accurately minimizes the squared loss $\mathcal{L}(\mathbf{w})$ while avoiding the catastrophic overfitting often associated with high-degree polynomials.
+
+\end{document}
