@@ -19,7 +19,7 @@
 \maketitle
 
 \section{Introduction}
-This report details the implementation and evaluation of a polynomial regression model developed entirely from scratch using NumPy. The objective is to predict the continuous target variable $y$ for two distinct scenarios: Steam Turbine Optimization (var1) and Subterranean Thermal Reservoir Mapping (var2). The report discusses the mathematical foundations aligned with the course notation, feature selection methodologies, and the determination of the optimal polynomial degree through hyperparameter sweeping.
+This report details the implementation and evaluation of a polynomial regression model developed entirely from scratch using NumPy. The objective is to predict the continuous target variable $y$ for two distinct scenarios: Steam Turbine Optimization (var1) and Subterranean Thermal Reservoir Mapping (var2). The report discusses the mathematical foundations aligned with the course notation, feature selection methodologies, and the determination of the optimal polynomial degree through hyperparameter sweeping using both standard hold-out and $K$-Fold cross-validation.
 
 \section{Methodology and Mathematical Formulation}
 Following the notation established in the lectures, let the $n^{\text{th}}$ data point be denoted by the input vector $\mathbf{x}_n$ and the true target value as $y_n$ (often denoted $t_n$ in standard literature). The predictor or hypothesis function is parameterized by weights $\mathbf{w}$ and is defined as:
@@ -48,15 +48,13 @@ To ensure numerical stability when $\mathbf{X}^T \mathbf{X}$ is ill-conditioned 
 
 \section{Problem 1: Steam Turbine Optimization (var1)}
 \subsection{Experimental Setup}
-The objective is to predict the Net Power Score ($y$) based on 6 operational parameters ($x_1, \dots, x_6$). The historical plant calibration logs were split into 80\% training ($N=800$) and 20\% validation ($N=200$). We compared models trained on a subset of features versus the full feature set.
+The objective is to predict the Net Power Score ($y$) based on 6 operational parameters ($x_1, \dots, x_6$). We performed two exhaustive sweeps across all subsets of features and polynomial degrees (from 1 to 10): first using a standard 80/20 train-validation split, and subsequently using a rigorous 10-Fold Cross-Validation to assess model stability.
 
-\subsection{Degree Sweep and Model Selection}
-We swept the polynomial degree from 1 to 10. The evaluation metrics used were Mean Squared Error (MSE) and the $R^2$ Score. 
-
+\subsection{80/20 Split Analysis}
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.9\textwidth]{var1_sweep.png}
-    \caption{Degree Sweep for Problem 1 comparing different feature subsets.}
+    \caption{Degree Sweep for Problem 1 comparing different feature subsets (80/20 Split).}
     \label{fig:var1_sweep}
 \end{figure}
 
@@ -67,7 +65,6 @@ We swept the polynomial degree from 1 to 10. The evaluation metrics used were Me
 \textbf{Degree} & \textbf{3 Features ($x_1, x_2, x_3$)} & & \textbf{6 Features ($x_1 \dots x_6$)} & \\
 & Val MSE & Val $R^2$ & Val MSE & Val $R^2$ \\
 \midrule
-1 & 11.69 & -0.005 & 10.90 & 0.063 \\
 2 & 10.23 & 0.120 & 3.46 & 0.703 \\
 3 & 10.09 & 0.133 & 1.12 & 0.904 \\
 \textbf{4} & 9.95 & 0.145 & \textbf{0.835} & \textbf{0.928} \\
@@ -75,13 +72,32 @@ We swept the polynomial degree from 1 to 10. The evaluation metrics used were Me
 6 & 10.41 & 0.105 & $6.49 \times 10^7$ & Explodes \\
 \bottomrule
 \end{tabular}
-\caption{Validation performance across polynomial degrees for Problem 1.}
+\caption{Validation performance across polynomial degrees (80/20 split) for Problem 1.}
 \label{tab:var1_sweep}
 \end{table}
 
-As illustrated in Figure \ref{fig:var1_sweep} and Table \ref{tab:var1_sweep}, using only 3 features results in severe underfitting across all degrees, with a maximum $R^2$ of merely 0.155. 
+As illustrated in Figure \ref{fig:var1_sweep} and Table \ref{tab:var1_sweep}, omitting features (e.g., using only 3 features) results in severe underfitting. Incorporating all 6 features yields an optimal validation MSE at \textbf{Degree 4} (MSE = 0.835). At Degree 6, the model suffers from extreme overfitting due to the curse of dimensionality.
 
-Incorporating all 6 features yields a dramatic improvement. The validation MSE reaches its absolute minimum at \textbf{Degree 4} (MSE = 0.835, $R^2$ = 0.928). At Degree 5, the model begins to overfit, and at Degree 6, the model suffers from extreme overfitting due to the curse of dimensionality, causing the validation error to explode into the millions. 
+\subsection{10-Fold Cross Validation Analysis}
+To robustly verify this hyperparameter selection, a 10-Fold CV was applied to all 630 configurations (63 feature subsets $\times$ 10 degrees). The standard deviation of the validation MSE across the 10 folds was recorded as a metric of model stability.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Features Included} & \textbf{Degree} & \textbf{Avg Val MSE} & \textbf{Avg Val $R^2$} & \textbf{Val MSE Std Dev} \\
+\midrule
+$x_1, x_2, x_3, x_4, x_5, x_6$ & 3 & 1.108 & 0.901 & 0.235 \\
+$\mathbf{x_1, x_2, x_3, x_4, x_5, x_6}$ & \textbf{4} & \textbf{0.833} & \textbf{0.924} & \textbf{0.144} \\
+$x_1, x_2, x_3, x_4, x_5, x_6$ & 5 & 1.014 & 0.911 & 0.347 \\
+$x_1, x_2, x_3, x_5, x_6$ (No $x_4$) & 4 & 1.753 & 0.841 & 0.224 \\
+\bottomrule
+\end{tabular}
+\caption{Top configurations from 10-Fold Cross-Validation for Problem 1.}
+\label{tab:var1_kfold}
+\end{table}
+
+The 10-Fold CV (Table \ref{tab:var1_kfold}) definitively confirms that \textbf{Degree 4 with all 6 features} is superior. Not only does it hold the lowest average error (MSE = 0.833), but it is also the most stable configuration, exhibiting the lowest variance across folds (Std Dev = 0.144).
 
 \begin{figure}[h]
     \centering
@@ -90,13 +106,11 @@ Incorporating all 6 features yields a dramatic improvement. The validation MSE r
     \label{fig:var1_res}
 \end{figure}
 
-Figure \ref{fig:var1_res} demonstrates the excellent fit of the Degree 4 model, with predictions forming a tight cluster around the perfect fit line for both training and validation sets. Therefore, the \textbf{Degree 4 model with all 6 features} was selected.
-
 \section{Problem 2: Subterranean Thermal Reservoir Mapping (var2)}
 \subsection{Experimental Setup}
-The objective is to predict the Thermal Anomaly Score ($y$) using 3 spatial coordinate offsets ($x_1, x_2, x_3$). An 80/20 train-validation split was employed. We evaluated models using a single feature versus all 3 features.
+The objective is to predict the Thermal Anomaly Score ($y$) using 3 spatial coordinate offsets ($x_1, x_2, x_3$). As with Problem 1, we evaluated models using both an 80/20 split and exhaustive 10-Fold CV across all possible 70 feature/degree permutations.
 
-\subsection{Degree Sweep and Model Selection}
+\subsection{80/20 Split Analysis}
 
 \begin{figure}[h]
     \centering
@@ -112,20 +126,38 @@ The objective is to predict the Thermal Anomaly Score ($y$) using 3 spatial coor
 \textbf{Degree} & \textbf{1 Feature ($x_1$)} & & \textbf{3 Features ($x_1, x_2, x_3$)} & \\
 & Val MSE & Val $R^2$ & Val MSE & Val $R^2$ \\
 \midrule
-1 & 50.13 & -0.003 & 38.66 & 0.226 \\
 4 & 46.86 & 0.062 & 3.48 & 0.930 \\
 6 & 46.29 & 0.074 & 0.633 & 0.987 \\
 \textbf{8} & 46.38 & 0.072 & \textbf{0.324} & \textbf{0.993} \\
 10 & 46.23 & 0.075 & 0.416 & 0.992 \\
 \bottomrule
 \end{tabular}
-\caption{Validation performance across polynomial degrees for Problem 2.}
+\caption{Validation performance across polynomial degrees (80/20 split) for Problem 2.}
 \label{tab:var2_sweep}
 \end{table}
 
-The analysis reveals that using a single feature ($x_1$) completely fails to capture the variance in the data, maxing out at an $R^2$ of ~7.5\% regardless of the degree (Table \ref{tab:var2_sweep}).
+The initial 80/20 sweep (Figure \ref{fig:var2_sweep} and Table \ref{tab:var2_sweep}) reveals that using a single feature completely fails to capture the target variance. With 3 features, the model steadily improves, minimizing validation error at \textbf{Degree 8}.
 
-When utilizing all 3 features, the model's performance improves significantly. The validation MSE steadily decreases as the degree increases, hitting a minimum at \textbf{Degree 8} (Val MSE = 0.324, $R^2$ = 0.993), as seen in Figure \ref{fig:var2_sweep}. Despite having 165 polynomial terms, the Degree 8 model remains highly stable.
+\subsection{10-Fold Cross Validation Analysis}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Features Included} & \textbf{Degree} & \textbf{Avg Val MSE} & \textbf{Avg Val $R^2$} & \textbf{Val MSE Std Dev} \\
+\midrule
+$x_1, x_2, x_3$ & 6 & 0.573 & 0.988 & 0.069 \\
+$x_1, x_2, x_3$ & 7 & 0.336 & 0.993 & 0.045 \\
+$\mathbf{x_1, x_2, x_3}$ & \textbf{8} & \textbf{0.273} & \textbf{0.994} & \textbf{0.027} \\
+$x_1, x_2, x_3$ & 9 & 0.297 & 0.994 & 0.028 \\
+$x_1, x_2, x_3$ & 10 & 0.401 & 0.992 & 0.196 \\
+\bottomrule
+\end{tabular}
+\caption{Top configurations from 10-Fold Cross-Validation for Problem 2.}
+\label{tab:var2_kfold}
+\end{table}
+
+The 10-Fold CV results in Table \ref{tab:var2_kfold} corroborate the 80/20 findings. At \textbf{Degree 8}, the validation MSE achieves its true minimum (0.273) alongside an exceptional stability metric (Std Dev = 0.027). Pushing the polynomial to Degree 10 drastically increases the standard deviation (0.196), indicating the onset of model variance.
 
 \begin{figure}[h]
     \centering
@@ -134,9 +166,9 @@ When utilizing all 3 features, the model's performance improves significantly. T
     \label{fig:var2_res}
 \end{figure}
 
-The residual plot in Figure \ref{fig:var2_res} confirms that the validation predictions are exceptionally accurate. Consequently, the \textbf{Degree 8 model with all 3 features} was chosen as the final model for Problem 2.
+The residual plot in Figure \ref{fig:var2_res} confirms that the validation predictions tightly hug the perfect-fit line. Consequently, the \textbf{Degree 8 model with all 3 features} was definitively chosen as the final model for Problem 2.
 
 \section{Conclusion}
-Through systematic feature selection and hyperparameter sweeping, optimal polynomial regression models were identified. The analysis demonstrated that leveraging the full feature set up to an optimal complexity boundary accurately minimizes the squared loss $\mathcal{L}(\mathbf{w})$ while avoiding the catastrophic overfitting often associated with high-degree polynomials.
+Through systematic feature selection and hyperparameter sweeping via both 80/20 splits and rigorous 10-Fold Cross-Validation, optimal polynomial regression models were mathematically identified. The analysis demonstrated that leveraging the full feature set up to an optimal complexity boundary accurately minimizes the squared loss $\mathcal{L}(\mathbf{w})$ while maintaining model stability across holdout folds.
 
 \end{document}
